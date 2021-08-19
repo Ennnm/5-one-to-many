@@ -41,8 +41,16 @@ switch(process.argv[2]) {
   }
   // node index.js <OWNER_ID> <CAT_NAME>
   case('create-cat'): {
+    if (process.argv.length === 5) {
+      console.log ('creating cat with owner name')
+      const owner = process.argv[3]
+      const cat = process.argv[4]
+      sqlQuery = `INSERT INTO cats (owner_id, name) VALUES ((SELECT id FROM owners WHERE owners.name = '${owner}'),'${cat}')`;
+    }
+    else {
     console.log("creating cat");
     sqlQuery = `INSERT INTO cats (owner_id, name) VALUES ('${process.argv[3]}', '${process.argv[4]}') RETURNING *`;
+    }
     client.query(sqlQuery, whenQueryDone);
     break;
   }
@@ -55,13 +63,34 @@ switch(process.argv[2]) {
         client.query(ownerQuery, (error, ownerResult) => {
           if (error) throw error;
 
-          console.log(`${cat.id}. ${cat.name}, Owner: ${ownerResult.rows[0].name} `)
           if(index===result.rows.length-1){
             client.end();
           }       
         })
       })
     })
+  }
+
+  case('owners'): {
+    console.log ("Querying owners and their cats");
+    sqlQuery = 'SELECT owners.name AS owner_name, cats.name FROM owners INNER JOIN cats ON owners.id = cats.owner_id'
+    client.query(sqlQuery, (error, result) => {
+      if (error) throw error
+      const ownerCatsObj = {}
+      result.rows.forEach((x) => {
+        const owner = x.owner_name;
+        const cat = x.name;
+        if (owner in ownerCatsObj) {
+          ownerCatsObj[owner].push(cat)
+        }
+        else {
+          ownerCatsObj[owner] = [cat]
+        }
+      }
+    )
+    console.log (ownerCatsObj)
+    })
+    break;
   }
   default:
     break;
